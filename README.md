@@ -15,6 +15,7 @@ The second row is the type (supports int, float, bool, string, and enum types)
 
 The third row is for comments and will not be read
 
+视频教程：https://www.bilibili.com/video/BV1Nw4m1q7qt/
 
 一个能够按一定规则将Excel表的内容转换成多个unity的scriptableobject资源文件的工具
 
