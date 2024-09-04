@@ -1,7 +1,7 @@
 # ExcelToScriptableObject
 A tool that can convert the contents of an Excel table into multiple Unity ScriptableObject resource files according to certain rules.
 
-If your project does not contain the ExcelDll file, please download the ExcelDll folder into your project (it is recommended to place it in the Editor directory).
+If your project does not contain the ExcelDll file, please download the ExcelDll folder into your project .
 
 Support for enumerated types (which need to be created in advance)
 
@@ -19,7 +19,7 @@ The third row is for comments and will not be read
 
 一个能够按一定规则将Excel表的内容转换成多个unity的scriptableobject资源文件的工具
 
-如果您的项目里没有ExcelDll文件，请将ExcelDll文件夹下载到您的项目里(推荐放在Editor目录下) 
+如果您的项目里没有ExcelDll文件，请将ExcelDll文件夹下载到您的项目里
 
 支持枚举类型(需要自己提前创建)
 
