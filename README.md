@@ -17,6 +17,8 @@ The third row is for comments and will not be read
 
 视频教程：https://www.bilibili.com/video/BV1Nw4m1q7qt/
 
+博客链接：https://www.cnblogs.com/asyaB404/p/18229482
+
 一个能够按一定规则将Excel表的内容转换成多个unity的scriptableobject资源文件的工具
 
 如果您的项目里没有ExcelDll文件，请将ExcelDll文件夹下载到您的项目里
