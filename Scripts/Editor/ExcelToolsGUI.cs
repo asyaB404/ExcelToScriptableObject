@@ -23,6 +23,7 @@ namespace Basya
         private readonly StringBuilder strBuilder = new();
 
         private Panel currentPanel = Panel.Main;
+
         private Panel CurrentPanel
         {
             get { return currentPanel; }
@@ -53,6 +54,7 @@ namespace Basya
             {
                 CurrentPanel++;
             }
+
             switch (CurrentPanel)
             {
                 case Panel.Main:
@@ -82,6 +84,7 @@ namespace Basya
                     localExcelPath = path;
                 }
             }
+
             GUILayout.EndHorizontal();
             GUILayout.Space(20);
             GUILayout.BeginHorizontal();
@@ -96,6 +99,7 @@ namespace Basya
                     localSobjPath = path;
                 }
             }
+
             GUILayout.EndHorizontal();
             GUILayout.Space(20);
             GUILayout.BeginHorizontal();
@@ -110,12 +114,14 @@ namespace Basya
                     localAssetsPath = path;
                 }
             }
+
             GUILayout.EndHorizontal();
             GUILayout.Space(20);
             if (GUILayout.Button("创建SOBJ"))
             {
                 SpawnSOBJ();
             }
+
             GUILayout.Space(10);
             GUILayout.Label("创建完成后请等待编译结束后", EditorStyles.boldLabel);
             GUILayout.Label("再创建SOBJ对应的资源文件", EditorStyles.boldLabel);
@@ -137,109 +143,94 @@ namespace Basya
 
             for (int i = 0; i < files.Length; i++)
             {
-                if (files[i].Extension != ".xlsx" && files[i].Extension != ".xls")
+                var file = files[i];
+                if (file.Extension != ".xlsx" && file.Extension != ".xls")
                     continue;
-                using FileStream fs = files[i].Open(FileMode.Open, FileAccess.Read);
+                using FileStream fs = file.Open(FileMode.Open, FileAccess.Read);
                 IExcelDataReader excelReader = ExcelReaderFactory.CreateOpenXmlReader(fs);
                 tableConllection = excelReader.AsDataSet().Tables;
                 fs.Close();
                 excelReader.Close();
                 foreach (DataTable table in tableConllection)
                 {
-                    GenerateSObjClass(table, sobjPath);
+                    GenerateSObjClass(table, sobjPath, file.Name[..^5]);
                 }
             }
+
             AssetDatabase.Refresh();
         }
 
-        private void GenerateSObjClass(DataTable table, string sobjPath)
+        private void GenerateSObjClass(DataTable table, string sobjPath, string fileName)
         {
-            //字段名行
             DataRow rowName = table.Rows[0];
-            //字段类型行
             DataRow rowType = table.Rows[1];
-
             if (!Directory.Exists(sobjPath))
                 Directory.CreateDirectory(sobjPath);
-            //如果我们要生成对应的数据结构类脚本 其实就是通过代码进行字符串拼接 然后存进文件就行了
 
             strBuilder.Clear();
-            strBuilder.Append("using UnityEngine;\n");
-            strBuilder.Append("using System.Data;\n\n");
-            strBuilder
-                .Append("[CreateAssetMenu(fileName = \"")
-                .Append(table.TableName)
-                .Append("\", menuName = \"ScriptableObject/")
-                .Append(table.TableName)
-                .Append("\")]\n");
-            strBuilder
-                .Append("public class ")
-                .Append(table.TableName)
-                .Append(" : ExcelableScriptableObject\n{\n");
+            strBuilder.AppendLine("using UnityEngine;");
+            strBuilder.AppendLine("using UnityEditor;");
+            strBuilder.AppendLine("using System.Data;");
+            strBuilder.AppendLine();
+            strBuilder.AppendLine($"namespace {fileName} {{");
+            strBuilder.AppendLine(
+                $"\t[CreateAssetMenu(fileName = \"{table.TableName}\", menuName = \"ScriptableObject/{table.TableName}\")]");
+            strBuilder.AppendLine($"\tpublic class {table.TableName} : ExcelableScriptableObject");
+            strBuilder.AppendLine("\t{");
 
+            GenerateField(table, rowName, rowType);
+            GenerateInitMethod(table, rowName, rowType);
+
+            strBuilder.AppendLine("\t}");
+            strBuilder.AppendLine("}");
+
+            File.WriteAllText(Path.Combine(sobjPath, $"{table.TableName}.cs"), strBuilder.ToString());
+        }
+
+        private void GenerateField(DataTable table, DataRow rowName, DataRow rowType)
+        {
             for (int j = 0; j < table.Columns.Count; j++)
             {
                 if (rowType[j].ToString().Length >= 6 && rowType[j].ToString()[..5] == "Enum.")
                 {
-                    strBuilder
-                        .Append("    public ")
-                        .Append(rowType[j].ToString()[5..])
-                        .Append(" ")
-                        .Append(rowName[j].ToString())
-                        .Append(";\n");
+                    strBuilder.AppendLine($"\t\tpublic {rowType[j].ToString()[5..]} {rowName[j]};");
                 }
                 else
                 {
-                    strBuilder
-                        .Append("    public ")
-                        .Append(rowType[j].ToString())
-                        .Append(" ")
-                        .Append(rowName[j].ToString())
-                        .Append(";\n");
+                    strBuilder.AppendLine($"\t\tpublic {rowType[j]} {rowName[j]};");
                 }
             }
+        }
 
-            strBuilder.Append("\n    public override void Init(DataRow row)\n    {\n");
+        private void GenerateInitMethod(DataTable table, DataRow rowName, DataRow rowType)
+        {
+            strBuilder.AppendLine();
+            strBuilder.AppendLine("\t\tpublic override void Init(DataRow row)");
+            strBuilder.AppendLine("\t\t{");
             for (int j = 0; j < table.Columns.Count; j++)
             {
-                if (rowType[j].ToString() == "string")
+                switch (rowType[j].ToString())
                 {
-                    strBuilder
-                        .Append("        ")
-                        .Append(rowName[j].ToString())
-                        .Append(" = row[")
-                        .Append(j)
-                        .Append("].ToString();\n");
-                }
-                else if (rowType[j].ToString().Length >= 6 && rowType[j].ToString()[..5] == "Enum.")
-                {
-                    strBuilder
-                        .Append("        ")
-                        .Append(rowName[j].ToString())
-                        .Append(" = (")
-                        .Append(rowType[j].ToString()[5..])
-                        .Append(")System.Enum.Parse(typeof(")
-                        .Append(rowType[j].ToString()[5..])
-                        .Append("), row[")
-                        .Append(j)
-                        .Append("].ToString());\n");
-                }
-                else
-                {
-                    strBuilder
-                        .Append("        ")
-                        .Append(rowName[j].ToString())
-                        .Append(" = ")
-                        .Append(rowType[j].ToString())
-                        .Append(".Parse(row[")
-                        .Append(j)
-                        .Append("].ToString());\n");
+                    case "":
+                        break;
+                    case "string":
+                        strBuilder.AppendLine($"\t\t\t{rowName[j]} = row[{j}].ToString();");
+                        break;
+                    case "Sprite":
+                        strBuilder.AppendLine(
+                            $"\t\t\t{rowName[j]} = AssetDatabase.LoadAssetAtPath<Sprite>(row[{j}].ToString().Trim());");
+                        break;
+                    case var type when type.StartsWith("Enum."):
+                        strBuilder.AppendLine(
+                            $"\t\t\t{rowName[j]} = ({type[5..]})System.Enum.Parse(typeof({type[5..]}), row[{j}].ToString());");
+                        break;
+                    default:
+                        strBuilder.AppendLine($"\t\t\t{rowName[j]} = {rowType[j]}.Parse(row[{j}].ToString());");
+                        break;
                 }
             }
 
-            strBuilder.Append("    }\n").Append("}");
-
-            File.WriteAllText(sobjPath + "/" + table.TableName + ".cs", strBuilder.ToString());
+            strBuilder.AppendLine("\t\t}");
         }
 
         private void SpawnAsset()
@@ -260,13 +251,14 @@ namespace Basya
                 excelReader.Close();
                 foreach (DataTable table in tableConllection)
                 {
-                    GenerateAssest(table);
+                    GenerateAsset(table);
                 }
             }
+
             AssetDatabase.Refresh();
         }
 
-        private void GenerateAssest(DataTable table)
+        private void GenerateAsset(DataTable table)
         {
             string assetPath = Application.dataPath + "/" + localAssetsPath;
             if (!Directory.Exists(assetPath))
@@ -284,6 +276,7 @@ namespace Basya
                 );
                 AssetDatabase.SaveAssets();
             }
+
             AssetDatabase.Refresh();
         }
 
@@ -306,6 +299,7 @@ namespace Basya
                     localExcelPath1 = path;
                 }
             }
+
             GUILayout.EndHorizontal();
             GUILayout.Space(20);
             GUILayout.BeginHorizontal();
@@ -320,6 +314,7 @@ namespace Basya
                     localSobjPath1 = path;
                 }
             }
+
             GUILayout.EndHorizontal();
             GUILayout.Space(20);
             GUILayout.BeginHorizontal();
@@ -334,6 +329,7 @@ namespace Basya
                     localInfoClassPath = path;
                 }
             }
+
             GUILayout.EndHorizontal();
             GUILayout.Space(20);
             GUILayout.BeginHorizontal();
@@ -348,12 +344,14 @@ namespace Basya
                     localAssetsPath1 = path;
                 }
             }
+
             GUILayout.EndHorizontal();
             GUILayout.Space(20);
             if (GUILayout.Button("创建SOBJ和自定义信息类"))
             {
                 SpawnSOBJAndInfoClass();
             }
+
             GUILayout.Space(10);
             GUILayout.Label("创建完成后请等待编译结束后", EditorStyles.boldLabel);
             GUILayout.Label("再创建SOBJ对应的资源文件", EditorStyles.boldLabel);
@@ -376,135 +374,79 @@ namespace Basya
 
             for (int i = 0; i < files.Length; i++)
             {
-                if (files[i].Extension != ".xlsx" && files[i].Extension != ".xls")
+                var file = files[i];
+                if (file.Extension != ".xlsx" && file.Extension != ".xls")
                     continue;
-                using FileStream fs = files[i].Open(FileMode.Open, FileAccess.Read);
+                using FileStream fs = file.Open(FileMode.Open, FileAccess.Read);
                 IExcelDataReader excelReader = ExcelReaderFactory.CreateOpenXmlReader(fs);
                 tableConllection = excelReader.AsDataSet().Tables;
                 fs.Close();
                 excelReader.Close();
                 foreach (DataTable table in tableConllection)
                 {
-                    GenerateSObjClass1(table, sobjPath);
-                    GenerateSObjInfoClass(table, infoclassPath);
+                    GenerateSObjClass1(table, sobjPath, file.Name[..^5]);
+                    GenerateSObjInfoClass(table, infoclassPath, file.Name[..^5]);
                 }
             }
+
             AssetDatabase.Refresh();
         }
 
-        private void GenerateSObjClass1(DataTable table, string sobjPath)
+        private void GenerateSObjClass1(DataTable table, string sobjPath, string namespaceName)
         {
             if (!Directory.Exists(sobjPath))
                 Directory.CreateDirectory(sobjPath);
+
             strBuilder.Clear();
             strBuilder.AppendLine("using System.Collections.Generic;");
             strBuilder.AppendLine("using UnityEngine;");
             strBuilder.AppendLine();
+            strBuilder.AppendLine($"namespace {namespaceName} {{");
             strBuilder.AppendLine(
-                "[CreateAssetMenu(fileName = \""
-                    + table.TableName
-                    + "\", menuName = \"ScriptableObject/"
-                    + table.TableName
-                    + "\")]"
-            );
-            strBuilder.AppendLine(
-                "public class " + table.TableName + " : ExcelableScriptableObject"
-            );
-            strBuilder.AppendLine("{");
-            strBuilder.AppendLine(
-                "\tpublic List<" + table.TableName + "InfoClass" + "> list = new();"
-            );
-            strBuilder.AppendLine();
-            strBuilder.AppendLine("\tpublic override void Init(object[] objects)");
+                $"\t[CreateAssetMenu(fileName = \"{table.TableName}\", menuName = \"ScriptableObject/{table.TableName}\")]");
+            strBuilder.AppendLine($"\tpublic class {table.TableName} : ExcelableScriptableObject");
             strBuilder.AppendLine("\t{");
-            strBuilder.AppendLine("\t\tforeach (var obj in objects)");
+            strBuilder.AppendLine($"\t\tpublic List<{table.TableName}InfoClass> list = new();");
+            strBuilder.AppendLine();
+            strBuilder.AppendLine("\t\tpublic override void Init(object[] objects)");
             strBuilder.AppendLine("\t\t{");
-            strBuilder.AppendLine("\t\t\tvar obj1 = obj as " + table.TableName + "InfoClass" + ";");
-            strBuilder.AppendLine("\t\t\tlist.Add(obj1);");
+            strBuilder.AppendLine("\t\t\tforeach (var obj in objects)");
+            strBuilder.AppendLine("\t\t\t{");
+            strBuilder.AppendLine($"\t\t\t\tvar obj1 = obj as {table.TableName}InfoClass;");
+            strBuilder.AppendLine("\t\t\t\tlist.Add(obj1);");
+            strBuilder.AppendLine("\t\t\t}");
             strBuilder.AppendLine("\t\t}");
             strBuilder.AppendLine("\t}");
-            strBuilder.AppendLine("}");
-            File.WriteAllText(sobjPath + "/" + table.TableName + ".cs", strBuilder.ToString());
+            strBuilder.AppendLine("}"); // 关闭命名空间
+            File.WriteAllText(Path.Combine(sobjPath, $"{table.TableName}.cs"), strBuilder.ToString());
             AssetDatabase.Refresh();
         }
 
-        private void GenerateSObjInfoClass(DataTable table, string infoclassPath)
+        private void GenerateSObjInfoClass(DataTable table, string infoClassPath, string namespaceName)
         {
-            //字段名行
             DataRow rowName = table.Rows[0];
-            //字段类型行
             DataRow rowType = table.Rows[1];
             string className = table.TableName + "InfoClass";
-            if (!Directory.Exists(infoclassPath))
-                Directory.CreateDirectory(infoclassPath);
+
+            if (!Directory.Exists(infoClassPath))
+                Directory.CreateDirectory(infoClassPath);
+
             strBuilder.Clear();
             strBuilder.AppendLine("using System.Data;");
+            strBuilder.AppendLine("using UnityEditor;");
             strBuilder.AppendLine();
-            strBuilder.AppendLine("[System.Serializable]");
-            strBuilder.AppendLine("public class " + className);
-            strBuilder.AppendLine("{");
-            for (int j = 0; j < table.Columns.Count; j++)
-            {
-                if (rowType[j].ToString().Length >= 6 && rowType[j].ToString()[..5] == "Enum.")
-                {
-                    strBuilder
-                        .Append("    public ")
-                        .Append(rowType[j].ToString()[5..])
-                        .Append(" ")
-                        .Append(rowName[j].ToString())
-                        .Append(";\n");
-                }
-                else
-                {
-                    strBuilder
-                        .Append("    public ")
-                        .Append(rowType[j].ToString())
-                        .Append(" ")
-                        .Append(rowName[j].ToString())
-                        .Append(";\n");
-                }
-            }
+            strBuilder.AppendLine($"namespace {namespaceName} {{");
+            strBuilder.AppendLine("\t[System.Serializable]");
+            strBuilder.AppendLine($"\tpublic class {className}");
+            strBuilder.AppendLine("\t{");
 
-            strBuilder.Append("\n    public void Init(DataRow row)\n    {\n");
-            for (int j = 0; j < table.Columns.Count; j++)
-            {
-                if (rowType[j].ToString() == "string")
-                {
-                    strBuilder
-                        .Append("        ")
-                        .Append(rowName[j].ToString())
-                        .Append(" = row[")
-                        .Append(j)
-                        .Append("].ToString();\n");
-                }
-                else if (rowType[j].ToString().Length >= 6 && rowType[j].ToString()[..5] == "Enum.")
-                {
-                    strBuilder
-                        .Append("        ")
-                        .Append(rowName[j].ToString())
-                        .Append(" = (")
-                        .Append(rowType[j].ToString()[5..])
-                        .Append(")System.Enum.Parse(typeof(")
-                        .Append(rowType[j].ToString()[5..])
-                        .Append("), row[")
-                        .Append(j)
-                        .Append("].ToString());\n");
-                }
-                else
-                {
-                    strBuilder
-                        .Append("        ")
-                        .Append(rowName[j].ToString())
-                        .Append(" = ")
-                        .Append(rowType[j].ToString())
-                        .Append(".Parse(row[")
-                        .Append(j)
-                        .Append("].ToString());\n");
-                }
-            }
+            GenerateField(table, rowName, rowType);
+            GenerateInitMethod(table, rowName, rowType);
 
-            strBuilder.Append("    }\n").Append("}");
-            File.WriteAllText(infoclassPath + "/" + className + ".cs", strBuilder.ToString());
+            strBuilder.AppendLine("\t\t}");
+            strBuilder.AppendLine("\t}");
+            strBuilder.AppendLine("}"); // 关闭命名空间
+            File.WriteAllText(Path.Combine(infoClassPath, $"{className}.cs"), strBuilder.ToString());
             AssetDatabase.Refresh();
         }
 
@@ -526,13 +468,14 @@ namespace Basya
                 excelReader.Close();
                 foreach (DataTable table in tableConllection)
                 {
-                    GenerateAssest1(table);
+                    GenerateAsset1(table);
                 }
             }
+
             AssetDatabase.Refresh();
         }
 
-        private void GenerateAssest1(DataTable table)
+        private void GenerateAsset1(DataTable table)
         {
             string assetPath = Application.dataPath + "/" + localAssetsPath1;
             if (!Directory.Exists(assetPath))
@@ -552,6 +495,7 @@ namespace Basya
                 type.GetMethod("Init").Invoke(infoObj, new object[] { row });
                 objects[i - 3] = infoObj;
             }
+
             ExcelableScriptableObject asset = obj as ExcelableScriptableObject;
             asset.Init(objects);
             AssetDatabase.CreateAsset(
