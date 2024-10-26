@@ -5,7 +5,6 @@ using System.Text;
 using Excel;
 using UnityEditor;
 using UnityEngine;
-using UnityEngine.Events;
 
 namespace Basya
 {
@@ -151,9 +150,10 @@ namespace Basya
                 tableConllection = excelReader.AsDataSet().Tables;
                 fs.Close();
                 excelReader.Close();
+                string fileName = Path.GetFileNameWithoutExtension(file.Name);
                 foreach (DataTable table in tableConllection)
                 {
-                    GenerateSObjClass(table, sobjPath, file.Name[..^5]);
+                    GenerateSObjClass(table, sobjPath, fileName);
                 }
             }
 
@@ -169,10 +169,13 @@ namespace Basya
 
             strBuilder.Clear();
             strBuilder.AppendLine("using UnityEngine;");
-            strBuilder.AppendLine("using UnityEditor;");
+            strBuilder.AppendLine("#if UNITY_EDITOR");
             strBuilder.AppendLine("using System.Data;");
+            strBuilder.AppendLine("using UnityEditor;");
+            strBuilder.AppendLine("#endif");
             strBuilder.AppendLine();
-            strBuilder.AppendLine($"namespace {fileName} {{");
+            strBuilder.AppendLine($"namespace {fileName} ");
+            strBuilder.AppendLine("{");
             strBuilder.AppendLine(
                 $"\t[CreateAssetMenu(fileName = \"{table.TableName}\", menuName = \"ScriptableObject/{table.TableName}\")]");
             strBuilder.AppendLine($"\tpublic class {table.TableName} : ExcelableScriptableObject");
@@ -205,6 +208,7 @@ namespace Basya
         private void GenerateInitMethod(DataTable table, DataRow rowName, DataRow rowType)
         {
             strBuilder.AppendLine();
+            strBuilder.AppendLine("#if UNITY_EDITOR");
             strBuilder.AppendLine("\t\tpublic override void Init(DataRow row)");
             strBuilder.AppendLine("\t\t{");
             for (int j = 0; j < table.Columns.Count; j++)
@@ -231,6 +235,7 @@ namespace Basya
             }
 
             strBuilder.AppendLine("\t\t}");
+            strBuilder.AppendLine("#endif");
         }
 
         private void SpawnAsset()
@@ -382,10 +387,11 @@ namespace Basya
                 tableConllection = excelReader.AsDataSet().Tables;
                 fs.Close();
                 excelReader.Close();
+                string fileName = Path.GetFileNameWithoutExtension(file.Name);
                 foreach (DataTable table in tableConllection)
                 {
-                    GenerateSObjClass1(table, sobjPath, file.Name[..^5]);
-                    GenerateSObjInfoClass(table, infoclassPath, file.Name[..^5]);
+                    GenerateSObjClass1(table, sobjPath, fileName);
+                    GenerateSObjInfoClass(table, infoclassPath, fileName);
                 }
             }
 
@@ -401,10 +407,11 @@ namespace Basya
             strBuilder.AppendLine("using System.Collections.Generic;");
             strBuilder.AppendLine("using UnityEngine;");
             strBuilder.AppendLine();
-            strBuilder.AppendLine($"namespace {namespaceName} {{");
+            strBuilder.AppendLine($"namespace {namespaceName}");
+            strBuilder.AppendLine("{");
             strBuilder.AppendLine(
                 $"\t[CreateAssetMenu(fileName = \"{table.TableName}\", menuName = \"ScriptableObject/{table.TableName}\")]");
-            strBuilder.AppendLine($"\tpublic class {table.TableName} : ExcelableScriptableObject");
+            strBuilder.AppendLine($"\tpublic class {table.TableName}List : ExcelableScriptableObject");
             strBuilder.AppendLine("\t{");
             strBuilder.AppendLine($"\t\tpublic List<{table.TableName}InfoClass> list = new();");
             strBuilder.AppendLine();
@@ -432,10 +439,14 @@ namespace Basya
                 Directory.CreateDirectory(infoClassPath);
 
             strBuilder.Clear();
+            strBuilder.AppendLine("using UnityEngine;");
+            strBuilder.AppendLine("#if UNITY_EDITOR");
             strBuilder.AppendLine("using System.Data;");
             strBuilder.AppendLine("using UnityEditor;");
+            strBuilder.AppendLine("#endif");
             strBuilder.AppendLine();
-            strBuilder.AppendLine($"namespace {namespaceName} {{");
+            strBuilder.AppendLine($"namespace {namespaceName}");
+            strBuilder.AppendLine("{");
             strBuilder.AppendLine("\t[System.Serializable]");
             strBuilder.AppendLine($"\tpublic class {className}");
             strBuilder.AppendLine("\t{");
