@@ -118,7 +118,7 @@ namespace Basya
             GUILayout.Space(20);
             if (GUILayout.Button("创建SOBJ"))
             {
-                SpawnSOBJ();
+                SpawnSObj();
             }
 
             GUILayout.Space(10);
@@ -131,7 +131,7 @@ namespace Basya
             }
         }
 
-        private void SpawnSOBJ()
+        private void SpawnSObj()
         {
             DirectoryInfo dInfo = Directory.CreateDirectory(
                 Application.dataPath + "/" + localExcelPath
@@ -356,7 +356,7 @@ namespace Basya
             GUILayout.Space(20);
             if (GUILayout.Button("创建SOBJ和自定义信息类"))
             {
-                SpawnSOBJAndInfoClass();
+                SpawnSObjAndInfoClass();
             }
 
             GUILayout.Space(10);
@@ -369,7 +369,7 @@ namespace Basya
             }
         }
 
-        private void SpawnSOBJAndInfoClass()
+        private void SpawnSObjAndInfoClass()
         {
             DirectoryInfo dInfo = Directory.CreateDirectory(
                 Application.dataPath + "/" + localExcelPath1
@@ -471,23 +471,24 @@ namespace Basya
             DataTableCollection tableConllection;
             for (int i = 0; i < files.Length; i++)
             {
-                if (files[i].Extension != ".xlsx" && files[i].Extension != ".xls")
+                var file = files[i];
+                if (file.Extension != ".xlsx" && file.Extension != ".xls")
                     continue;
-                using FileStream fs = files[i].Open(FileMode.Open, FileAccess.Read);
+                using FileStream fs = file.Open(FileMode.Open, FileAccess.Read);
                 IExcelDataReader excelReader = ExcelReaderFactory.CreateOpenXmlReader(fs);
                 tableConllection = excelReader.AsDataSet().Tables;
                 fs.Close();
                 excelReader.Close();
                 foreach (DataTable table in tableConllection)
                 {
-                    GenerateAsset1(table);
+                    GenerateAsset1(table, Path.GetFileNameWithoutExtension(file.Name));
                 }
             }
 
             AssetDatabase.Refresh();
         }
 
-        private void GenerateAsset1(DataTable table)
+        private void GenerateAsset1(DataTable table, string nameSpace)
         {
             string assetPath = Application.dataPath + "/" + localAssetsPath1;
             if (!Directory.Exists(assetPath))
@@ -496,7 +497,7 @@ namespace Basya
             var listClassName = table.TableName + "List";
             ScriptableObject obj = ScriptableObject.CreateInstance(listClassName);
 
-            string className = listClassName + "InfoClass";
+            string className = nameSpace + "." + listClassName + "InfoClass";
             Type type = Type.GetType(className + ", Assembly-CSharp");
             DataRow row;
             object infoObj;
