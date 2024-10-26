@@ -182,7 +182,7 @@ namespace Basya
             strBuilder.AppendLine("\t{");
 
             GenerateField(table, rowName, rowType);
-            GenerateInitMethod(table, rowName, rowType);
+            GenerateInitMethod(table, rowName, rowType, true);
 
             strBuilder.AppendLine("\t}");
             strBuilder.AppendLine("}");
@@ -205,11 +205,13 @@ namespace Basya
             }
         }
 
-        private void GenerateInitMethod(DataTable table, DataRow rowName, DataRow rowType)
+        private void GenerateInitMethod(DataTable table, DataRow rowName, DataRow rowType, bool isOverride)
         {
             strBuilder.AppendLine();
             strBuilder.AppendLine("#if UNITY_EDITOR");
-            strBuilder.AppendLine("\t\tpublic override void Init(DataRow row)");
+            strBuilder.AppendLine(isOverride
+                ? "\t\tpublic override void Init(DataRow row)"
+                : "\t\tpublic void Init(DataRow row)");
             strBuilder.AppendLine("\t\t{");
             for (int j = 0; j < table.Columns.Count; j++)
             {
@@ -452,9 +454,8 @@ namespace Basya
             strBuilder.AppendLine("\t{");
 
             GenerateField(table, rowName, rowType);
-            GenerateInitMethod(table, rowName, rowType);
+            GenerateInitMethod(table, rowName, rowType, false);
 
-            strBuilder.AppendLine("\t\t}");
             strBuilder.AppendLine("\t}");
             strBuilder.AppendLine("}"); // 关闭命名空间
             File.WriteAllText(Path.Combine(infoClassPath, $"{className}.cs"), strBuilder.ToString());
