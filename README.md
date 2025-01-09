@@ -1,20 +1,3 @@
-# ExcelToScriptableObject
-A tool that can convert the contents of an Excel table into multiple Unity ScriptableObject resource files according to certain rules.
-
-If your project does not contain the ExcelDll file, please download the ExcelDll folder into your project .
-
-Support for enumerated types (which need to be created in advance)
-
-The format in the Excel table should be Enum.EnumName
-
-Configuration format:
-
-The first row is the field name
-
-The second row is the type (supports int, float, bool, string, and enum types)
-
-The third row is for comments and will not be read
-
 视频教程：https://www.bilibili.com/video/BV1Nw4m1q7qt/
 
 博客链接：https://www.cnblogs.com/asyaB404/p/18229482
@@ -31,6 +14,6 @@ The third row is for comments and will not be read
 
 第一行为字段名
 
-第二行为类型(支持int float bool string 枚举类型)
+第二行为类型(支持int float bool string 枚举类型 Sprite)
 
 第三行作注释,不会被读取
